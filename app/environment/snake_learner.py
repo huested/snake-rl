@@ -35,6 +35,8 @@ class SnakeLearner():
          # Calculate max action based on q policy
          with torch.no_grad():
             state_tensor = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+            #state = state.ravel()
+            #state_tensor = torch.from_numpy(state).float().to(self.device)
             max_action = torch.argmax(self.q_policy(state_tensor)).item()
             return max_action
       else:
