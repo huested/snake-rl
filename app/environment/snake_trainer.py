@@ -90,7 +90,11 @@ class SnakeTrainer():
          while done == False:         
             # Get s, a, s', r and save to replay memory
             state_t0 = state_t1
-            action = self.snake.choose_action(state_t0.ravel(), self.epsilon_cur)
+            if self.iterations >= self.steps_before_decaying:
+               action = self.snake.choose_action(state_t0.ravel(), self.epsilon_cur)
+            else:
+               action = random.randrange(0,4)
+            
             state_t1, _, reward, done = self.env.step(action)
             tot_reward += reward
             self.snake.replay_memory.save(state_t0.ravel(), action, state_t1.ravel(), reward, done)
@@ -149,16 +153,16 @@ class SnakeTrainer():
       state_body_down = self.env.state_body_down
       state_body_left = self.env.state_body_left
       state_body_right = self.env.state_body_right
-      detailed_state_t1 = np.asarray([state_head, state_food, state_body_up, state_body_down, state_body_left, state_body_right])
+      valid_moves = self.env.valid_moves
+      detailed_state_t1 = np.asarray([state_head, state_food, state_body_up, state_body_down, state_body_left, state_body_right, valid_moves])
 
       # Iterate through episodes
       #decayed_epsilon = EPSILON
       #num_episodes = 0
       #rewards_per_episode = np.zeros(EPISODES)
       rolling_avg_array = np.zeros(self.episodes)
-
-      for episode in range(self.episodes):
-         self.episode=episode
+      self.episode=0
+      while(True):
 
          # Decay Epsilon (or dont)
          if self.iterations >= self.steps_before_decaying:
@@ -174,6 +178,7 @@ class SnakeTrainer():
             # Get s, a, s', r and save to replay memory
             state_t0 = state_t1
             detailed_state_t0 = detailed_state_t1
+            #print(detailed_state_t0.ravel())
             action = self.snake.choose_action(detailed_state_t0.ravel(), self.epsilon_cur)
             state_t1, detailed_state_t1, reward, done = self.env.step(action)
             tot_reward += reward
@@ -196,11 +201,11 @@ class SnakeTrainer():
          #rewards_per_episode[episode] = tot_reward
 
          # Store last 100 rewards
-         self.avg_100[episode % 100] = tot_reward
+         self.avg_100[self.episode % 100] = tot_reward
          rolling_avg = np.average(self.avg_100)
-         rolling_avg_array[episode] = rolling_avg
+         rolling_avg_array[self.episode] = rolling_avg
          
-         if episode>=100:
+         if self.episode>=100:
             if self.best_avg==None:
                self.best_avg=rolling_avg
             else:
@@ -216,7 +221,14 @@ class SnakeTrainer():
 
          # Print stuff
          if self.episode % 100 == 0:
-           print('episode ', episode, '\tavg rewards ', round(np.average(self.avg_100),1), '\tcum. iterations', self.iterations, '\tepsilon ', round(self.epsilon_cur,2))
+           print('episode ', self.episode, '\tavg rewards ', round(np.average(self.avg_100),1), '\tcum. iterations', self.iterations, '\tepsilon ', round(self.epsilon_cur,2))
+         
+         #Continue training if needed
+         if self.episode==self.episodes:
+            self.episode=self.episode_decay_starts=0           
+            self.episodes=10000
+            self.epsilon_cur=self.epsilon_start=0.3
+
 
       # Save model
       #snake.save()

@@ -29,7 +29,7 @@ class SnakeEnvironment():
       self.food_coord = None
       self.food_coords=[]
       self.action = None
-      self.actions = ('up', 'down', 'left', 'right')
+      self.actions = ('up', 'left', 'down', 'right')
       self.action_chain=[]
       self.head_val = self.id*10
       self.body_val = self.id
@@ -52,6 +52,7 @@ class SnakeEnvironment():
       self.state_body_down=np.zeros((self.height, self.width))
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
+      self.valid_moves = np.zeros((self.height,self.width))
       
 
       #Reward map
@@ -61,46 +62,46 @@ class SnakeEnvironment():
          'body':-10.0,
          'opponent_head':-10.0,
          'opponent_body':-10.0,
-         'closer':0.05,
-         'further':-0.05,
+         'closer':0.01,
+         'further':-0.01,
          'move':-0.01
       }
 
       #Action map
       self.action_map = {
          'up':0,
-         'down':1,
-         'left':2,
+         'down':2,
+         'left':1,
          'right':3
       }
       self.action_map_opposite = {
-         'up':0,
-         'down':1,
-         'left':2,
-         'right':3
+         'up':2,
+         'down':0,
+         'left':3,
+         'right':1
       }
       self.action_to_inverse_action = {
-         0:1,
-         1:0,
-         2:3,
-         3:2
+         0:2,
+         1:3,
+         2:0,
+         3:1
       }
       self.action_to_body_direction = {
          0:self.state_body_up,
-         1:self.state_body_down,
-         2:self.state_body_left,
+         1:self.state_body_left,
+         2:self.state_body_down,
          3:self.state_body_right
       }
       self.action_to_delta_height = {
          0:-1,
-         1:1,
-         2:0,
+         1:0,
+         2:1,
          3:0
       }
       self.action_to_delta_width = {
          0:0,
-         1:0,
-         2:-1,
+         1:-1,
+         2:0,
          3:1
       }
 
@@ -121,6 +122,7 @@ class SnakeEnvironment():
       self.state_body_down=np.zeros((self.height, self.width))
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
+      
 
       #Food
       #for _ in range(self.n_food):
@@ -159,6 +161,9 @@ class SnakeEnvironment():
       self.action = None
       self.prev_action=None
 
+      #Valid moves
+      self.set_valid_moves_array()
+
       #Todo: Second snake
       if self.display:
          print(self.state)
@@ -179,9 +184,9 @@ class SnakeEnvironment():
       if action==0:
          self.state_body_up[coord] = new_value
       elif action==1:
-         self.state_body_down[coord] = new_value
-      elif action==2:
          self.state_body_left[coord] = new_value
+      elif action==2:
+         self.state_body_down[coord] = new_value
       elif action==3:
          self.state_body_right[coord] = new_value
       return
@@ -237,6 +242,25 @@ class SnakeEnvironment():
       self.state_food_only[self.food_coord]=1.0
       return
 
+   def set_valid_moves_array(self):
+      if self.available_move(self.head, 0):
+         self.valid_moves[0][0]=0.0
+      else:
+         self.valid_moves[0][0]=1.0
+      if self.available_move(self.head,1):
+         self.valid_moves[0][1]=0.0
+      else:
+         self.valid_moves[0][1]=1.0
+      if self.available_move(self.head,2):
+         self.valid_moves[0][2]=0.0
+      else:
+         self.valid_moves[0][2]=1.0
+      if self.available_move(self.head,3):
+         self.valid_moves[0][3]=0.0
+      else:
+         self.valid_moves[0][3]=1.0
+      return
+   
    def step(self, action):
       reward = 0.0
 
@@ -300,10 +324,14 @@ class SnakeEnvironment():
       #Store action
       self.prev_action = action
 
+      #Get valid actions
+      self.set_valid_moves_array()
+      #print(self.valid_moves)
+
       #Print
       if self.display:
          print(self.state)
          print('Action: ', self.actions[action], "; Reward: ", reward)
 
-      detailed_state = np.asarray([self.state_head_only, self.state_food_only, self.state_body_up, self.state_body_down, self.state_body_left, self.state_body_right])
+      detailed_state = np.asarray([self.state_head_only, self.state_food_only, self.state_body_up, self.state_body_down, self.state_body_left, self.state_body_right, self.valid_moves])
       return self.state, detailed_state, reward, self.done
