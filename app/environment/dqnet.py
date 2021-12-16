@@ -8,6 +8,8 @@ class DQNModel(nn.Module):
       super(DQNModel,self).__init__()
       self.ll1= nn.Linear(num_states,layer2_size)
       self.ll2 = nn.Linear(layer2_size,layer3_size)
+      #self.ll2point5 = nn.Linear(layer3_size,32)
+      #self.ll3 = nn.Linear(32,num_actions)
       self.ll3 = nn.Linear(layer3_size,num_actions)
       self.seed = torch.manual_seed(123)
 
@@ -15,4 +17,5 @@ class DQNModel(nn.Module):
       # Forward propagation of state
       state = F.relu(self.ll1(state))
       state = F.relu(self.ll2(state))
+      #state = F.relu(self.ll2point5(state))
       return self.ll3(state)

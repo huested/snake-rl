@@ -38,6 +38,7 @@ class SnakeEnvironment():
       self.n_food_range = n_food_range
       self.rand_start_length=rand_start_length
       self.prev_action=None
+      self.food_got=0
 
       #Box properties
       self.width=width
@@ -53,6 +54,9 @@ class SnakeEnvironment():
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
       self.valid_moves = np.zeros((self.height,self.width))
+      self.state_radar=np.zeros(((self.height*2), (self.width*2)-1))
+      self.state_food_dist=[None, None]
+      self.state_food_direction=[None, None, None, None]
       
 
       #Reward map
@@ -62,8 +66,8 @@ class SnakeEnvironment():
          'body':-10.0,
          'opponent_head':-10.0,
          'opponent_body':-10.0,
-         'closer':0.01,
-         'further':-0.01,
+         'closer':0.25,
+         'further':0.25,
          'move':-0.01
       }
 
@@ -111,6 +115,7 @@ class SnakeEnvironment():
 
    def reset(self):
       self.done=False
+      self.food_got=0
       self.state = np.zeros((self.height, self.width))
       self.state_head_only=np.zeros((self.height, self.width))
       self.state_body_only=np.zeros((self.height, self.width))
@@ -122,7 +127,8 @@ class SnakeEnvironment():
       self.state_body_down=np.zeros((self.height, self.width))
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
-      
+      self.state_radar=np.zeros(((self.height*2), (self.width*2)-1))
+         #last row will be used for food state
 
       #Food
       #for _ in range(self.n_food):
@@ -145,6 +151,10 @@ class SnakeEnvironment():
       self.state[self.head] = self.head_val
       self.state_head_only[self.head]=1.0
 
+      #Food to head relationship
+      self.set_head_to_food_distance()
+      self.set_head_to_food_direction()
+
       #Snake body
       self.body = []
       if self.rand_start_length:
@@ -164,11 +174,74 @@ class SnakeEnvironment():
       #Valid moves
       self.set_valid_moves_array()
 
+      #Set radar; 
+      #      1 1 1 1 1        1 1 1 1 1
+      #      1 1 1 1 1        1 0 0 0 1
+      #      1 0 0 0 1   ==>  1 0 0 0 1
+      #      1 0 0 0 1        1 0 0 0 1
+      #      1 0 0 0 1        1 1 1 1 1
+      #
+      #
+      #      0 x 0            0 0 0
+      #      0 0 0       ==>  0 x 0
+      #      0 0 0            0 0 0
       #Todo: Second snake
+      self.set_radar()
+      
+
       if self.display:
          print(self.state)
       
       return self.state
+
+   def set_radar(self):
+      cur_x = self.head[1]
+      left_offset_x = self.width-cur_x-1
+      right_offset_x = (cur_x*-1)
+      self.state_radar[:, 0:left_offset_x] = 1
+      if right_offset_x <0:
+         self.state_radar[:, right_offset_x:] = 1
+      else:
+         right_offset_x = self.width*2
+
+      cur_y = self.head[0]
+      upper_offset_y = self.height-cur_y-1
+      bottom_offset_y = (cur_y*-1)-1
+      self.state_radar[0:upper_offset_y , :] = 1
+      if bottom_offset_y<1:
+         self.state_radar[bottom_offset_y: , :] = 1
+      else:
+         bottom_offset_y = self.height*2
+
+      self.state_food_radar = np.zeros(((self.height*2), (self.width*2)-1))
+      self.state_food_radar[self.food_coord]=1
+      self.state_radar[upper_offset_y:bottom_offset_y, left_offset_x:right_offset_x] = self.state_body_only
+      self.set_last_row_of_radar_to_food_info()
+
+      self.state_radar_all = np.asarray([self.state_food_radar, self.state_radar])
+      #print(self.state_radar)
+      return
+   
+   def set_head_to_food_distance(self):
+      self.state_food_dist = [self.head[0]-self.food_coord[0],self.head[1]-self.food_coord[1]]
+      return
+
+   def set_head_to_food_direction(self):
+      down=up=left=right=0
+      if self.food_coord[0]>self.head[0]:
+         down=1
+      if self.food_coord[0]<self.head[0]:
+         up=1
+      if self.food_coord[1]>self.head[1]:
+         right=1
+      if self.food_coord[1]<self.head[1]:
+         left=1
+      self.state_food_direction=[up,left,down,right]
+
+   def set_last_row_of_radar_to_food_info(self):
+      self.state_radar[self.height*2-1, 0:4]=self.state_food_direction
+      self.state_radar[self.height*2-1, 4:6]=self.state_food_dist
+      return
 
    def coord_plus_action(self, coord, action):
       return (coord[0]+self.action_to_delta_height[action],coord[1]+self.action_to_delta_width[action])
@@ -303,6 +376,7 @@ class SnakeEnvironment():
             
             if len(self.non_occupied_spaces)>0:
                self.food_spawn()
+            self.food_got+=1
 
          #No food
          else:
@@ -326,6 +400,10 @@ class SnakeEnvironment():
 
       #Get valid actions
       self.set_valid_moves_array()
+      self.set_head_to_food_distance()
+      self.set_head_to_food_direction()
+      self.set_radar()
+      
       #print(self.valid_moves)
 
       #Print
@@ -334,4 +412,4 @@ class SnakeEnvironment():
          print('Action: ', self.actions[action], "; Reward: ", reward)
 
       detailed_state = np.asarray([self.state_head_only, self.state_food_only, self.state_body_up, self.state_body_down, self.state_body_left, self.state_body_right, self.valid_moves])
-      return self.state, detailed_state, reward, self.done
+      return self.state, detailed_state, self.state_radar_all, reward, self.food_got, self.done
