@@ -254,8 +254,8 @@ class SnakeTrainer():
       #rewards_per_episode = np.zeros(EPISODES)
       rolling_avg_array = np.zeros(self.episodes)
       self.episode=0
-      while(True):
-      #for _ in range(self.episodes):
+      #while(True):
+      for _ in range(self.episodes):
 
          # Decay Epsilon (or dont)
          if self.iterations >= self.steps_before_decaying:
@@ -265,6 +265,7 @@ class SnakeTrainer():
          
          # Reset environment
          tot_reward = 0
+         self.env.start_length=max(1, int(self.epsilon_cur*self.grid_height*self.grid_width/2))
          state_t1 = self.env.reset()
          done = False 
          while done == False:         
@@ -274,6 +275,8 @@ class SnakeTrainer():
             #print(detailed_state_t0.ravel())
             action = self.snake.choose_action(detailed_state_t0.ravel(), self.epsilon_cur)
             state_t1, _, detailed_state_t1, reward, food_got, done = self.env.step(action)
+            #print(state_t1)
+            #print(detailed_state_t1)
             tot_reward += reward
             self.snake.replay_memory.save(detailed_state_t0.ravel(), action, detailed_state_t1.ravel(), reward, done)
 
@@ -313,16 +316,16 @@ class SnakeTrainer():
          self.episode += 1
 
          # Print stuff
-         if self.episode % 100 == 0:
-           print('episode ', self.episode, '\tavg food ', round(np.average(self.avg_100),1), '\tcum. iterations', self.iterations, '\tepsilon ', round(self.epsilon_cur,2))
+         if self.episode % 100 == 0 and self.iterations> self.steps_before_learning:
+           print('episode ', self.episode, '\tavg food ', round(np.average(self.avg_100),1), '\titerations ', self.iterations, '\tepsilon ', round(self.epsilon_cur,2))
          
          #Continue training if needed
-         
+         '''
          if self.episode==self.episodes:
             self.episode=self.episode_decay_starts=0           
             self.episodes=10000
             self.epsilon_cur=self.epsilon_start=0.45
-         
+         '''
 
 
       # Save model

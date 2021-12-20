@@ -19,7 +19,7 @@ SnakeEnvironment
 
 '''
 class SnakeEnvironment():
-   def __init__(self, width=10, height=10, id=1, display=False, start_coord=None, start_length=None, n_food=1, n_food_range=(1,1), rand_start_length=True):
+   def __init__(self, width=10, height=10, id=1, display=False, start_coord=None, start_length=1, n_food=1, n_food_range=(1,1), rand_start_length=True):
       self.id = id
       self.display = display
       self.start_length=start_length
@@ -54,7 +54,7 @@ class SnakeEnvironment():
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
       self.valid_moves = np.zeros((self.height,self.width))
-      self.state_radar=np.zeros(((self.height*2), (self.width*2)-1))
+      self.state_radar=np.zeros(((self.height*2)-1, (self.width*2)-1))
       self.state_food_dist=[None, None]
       self.state_food_direction=[None, None, None, None]
       
@@ -62,12 +62,12 @@ class SnakeEnvironment():
       #Reward map
       self.reward_map = {
          'wall': -10.0,
-         'food':1.0,
+         'food':9.0,
          'body':-10.0,
          'opponent_head':-10.0,
          'opponent_body':-10.0,
-         'closer':0.25,
-         'further':0.25,
+         'closer':0.3,
+         'further':0.2,
          'move':-0.01
       }
 
@@ -127,7 +127,7 @@ class SnakeEnvironment():
       self.state_body_down=np.zeros((self.height, self.width))
       self.state_body_left=np.zeros((self.height, self.width))
       self.state_body_right=np.zeros((self.height, self.width))
-      self.state_radar=np.zeros(((self.height*2), (self.width*2)-1))
+      self.state_radar=np.zeros(((self.height*2)-1, (self.width*2)-1))
          #last row will be used for food state
 
       #Food
@@ -159,7 +159,7 @@ class SnakeEnvironment():
       self.body = []
       if self.rand_start_length:
          prev_xy = self.head
-         for _ in range(random.randrange(0,self.width)):
+         for _ in range(random.randrange(0,self.start_length)):
             rand_action = random.randrange(0,4)
             rand_action_opposite = self.action_to_inverse_action[rand_action]
             if self.available_move(prev_xy, rand_action):        
@@ -206,19 +206,29 @@ class SnakeEnvironment():
 
       cur_y = self.head[0]
       upper_offset_y = self.height-cur_y-1
-      bottom_offset_y = (cur_y*-1)-1
+      bottom_offset_y = (cur_y*-1)
       self.state_radar[0:upper_offset_y , :] = 1
-      if bottom_offset_y<1:
+      if bottom_offset_y<0:
          self.state_radar[bottom_offset_y: , :] = 1
       else:
          bottom_offset_y = self.height*2
 
-      self.state_food_radar = np.zeros(((self.height*2), (self.width*2)-1))
-      self.state_food_radar[self.food_coord]=1
+      
+      
+      self.state_food_radar = np.zeros(((self.height*2)-1, (self.width*2)-1))
+      food_y = self.width + self.food_coord[0] -self.head[0] - 1
+      food_x = self.height + self.food_coord[1] - self.head[1] - 1
+      #print(food_x, food_y)
+      self.state_food_radar[food_y, food_x]=1
+      
       self.state_radar[upper_offset_y:bottom_offset_y, left_offset_x:right_offset_x] = self.state_body_only
+      '''
       self.set_last_row_of_radar_to_food_info()
+      '''
+      
 
       self.state_radar_all = np.asarray([self.state_food_radar, self.state_radar])
+      
       #print(self.state_radar)
       return
    
